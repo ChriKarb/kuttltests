@@ -33,6 +33,13 @@ v1 = client.CoreV1Api()
 # Fetch the list of namespaces
 namespace_list = v1.list_namespace()
 
+# Prepare the test suite dictionary
+test_suite = {
+    'apiVersion': 'kuttl.dev/v1beta1',
+    'kind': 'TestSuite',
+    'testDirs': [],
+}
+
 # Loop through all namespaces
 for namespace in namespace_list.items:
     ns_name = namespace.metadata.name
@@ -47,8 +54,8 @@ for namespace in namespace_list.items:
     for deployment_name in deployments:
         deployment_name = deployment_name.split('/')[1]
 
-        result = subprocess.run(['kubectl', 'get', 'deployment', deployment_name, '-n', ns_name, '-o', 'yaml'],
-                                stdout=subprocess.PIPE)
+        # Fetch the deployment YAML
+        result = subprocess.run(['kubectl', 'get', 'deployment', deployment_name, '-n', ns_name, '-o', 'yaml'], stdout=subprocess.PIPE)
         raw_yaml = result.stdout.decode('utf-8')
 
         # Clean the yaml
@@ -65,6 +72,11 @@ for namespace in namespace_list.items:
 
         print(f"Wrote cleaned assert file to {os.path.abspath(file_path)}")
 
-        subprocess.run(['kubectl','kuttl', 'assert', '--namespace', ns_name, file_path])
+        # Add this directory to the test suite
+        test_suite['testDirs'].append(f'my-kuttl-tests/{ns_name}/{deployment_name}')
 
-print("The cleaned assert.yaml files have been created and tests have been run.")
+# Write the test suite configuration to kuttl-test.yaml
+with open('my-kuttl-tests/kuttl-test.yaml', 'w') as f:
+    yaml.safe_dump(test_suite, f)
+
+print("The cleaned assert.yaml files have been created and the test suite has been configured.")
